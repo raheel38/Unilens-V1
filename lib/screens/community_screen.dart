@@ -16,79 +16,130 @@ class AddPost extends StatefulWidget {
 
 class _AddPostState extends State<AddPost> {
   late String userId;
-  TextEditingController _postTitle = TextEditingController();
-  TextEditingController _postContent = TextEditingController();
-  List? items;
+  final TextEditingController _postTitle = TextEditingController();
+  final TextEditingController _postContent = TextEditingController();
+  List<dynamic> items = [];
+  bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
     Map<String, dynamic> jwtDecodedToken = JwtDecoder.decode(widget.token);
     userId = jwtDecodedToken['_id'];
-    getPostList(userId);
+    fetchPosts();
   }
 
-  void PostToCommunity() async {
-    if (_postTitle.text.isNotEmpty && _postContent.text.isNotEmpty) {
-      var signupBody = {
-        "userId": userId,
-        "title": _postTitle.text,
-        "desc": _postContent.text
-      };
+  void createPost() async {
+    if (_postTitle.text.isEmpty || _postContent.text.isEmpty) {
+      _showSnackBar('Please fill in all fields');
+      return;
+    }
 
+    try {
       var response = await http.post(
         Uri.parse(addPost),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode(signupBody),
+        body: jsonEncode({
+          "userId": userId,
+          "title": _postTitle.text,
+          "desc": _postContent.text
+        }),
       );
 
       var jsonResponse = jsonDecode(response.body);
-      print(jsonResponse['status']);
 
       if (jsonResponse['status']) {
         _postTitle.clear();
         _postContent.clear();
-        getPostList(userId);
+        fetchPosts();
         Navigator.pop(context);
+        _showSnackBar('Post created successfully');
       } else {
-        print("Something Went Wrong!");
+        _showSnackBar(jsonResponse['message'] ?? 'Failed to create post');
       }
-    } else {
-      print("Fields cannot be empty");
+    } catch (e) {
+      _showSnackBar('Error: $e');
     }
   }
 
-  void getPostList(userId) async {
-    var signupBody = {
-      "userId": userId,
-    };
-    var response = await http.post(
-      Uri.parse(postList),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(signupBody),
-    );
+  void fetchPosts() async {
+    setState(() {
+      isLoading = true;
+    });
 
-    var jsonResponse = jsonDecode(response.body);
-    items = jsonResponse['success'];
+    try {
+      var response = await http.post(
+        Uri.parse(postList),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"userId": userId}),
+      );
 
-    setState(() {});
+      var jsonResponse = jsonDecode(response.body);
+
+      if (jsonResponse['status']) {
+        setState(() {
+          items = jsonResponse['posts'] ?? [];
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+        _showSnackBar(jsonResponse['message'] ?? 'Failed to fetch posts');
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      _showSnackBar('Error: $e');
+    }
   }
 
-  void deleteItem(id) async {
-    var signupBody = {
-      "id": id,
-    };
+  void deletePost(String postId) async {
+    try {
+      // Additional debug logging
+      debugPrint('Attempting to delete post with ID: $postId');
+      debugPrint('Using endpoint: $deletePost');
+      debugPrint('User ID: $userId');
 
-    var response = await http.post(
-      Uri.parse(deletePost),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(signupBody),
-    );
+      var response = await http.post(
+        Uri.parse(deletePosts),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "id": postId,
+          "userId": userId // Include userId for additional verification
+        }),
+      );
 
-    var jsonResponse = jsonDecode(response.body);
-    if (jsonResponse['status']) {
-      getPostList(userId);
+      // More detailed logging
+      debugPrint('Delete response status code: ${response.statusCode}');
+      debugPrint('Delete response body: ${response.body}');
+
+      var jsonResponse = jsonDecode(response.body);
+
+      if (jsonResponse['status']) {
+        // Successful deletion
+        fetchPosts(); // Refresh the list
+        _showSnackBar('Post deleted successfully');
+      } else {
+        // Server returned false status
+        _showSnackBar(jsonResponse['message'] ?? 'Failed to delete post');
+      }
+    } catch (e) {
+      // Catch and log any network or parsing errors
+      debugPrint('Error deleting post: $e');
+      _showSnackBar('Error deleting post: $e');
     }
+  }
+
+  // Centralized method for showing SnackBar
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -96,7 +147,6 @@ class _AddPostState extends State<AddPost> {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
-        // Removed border radius
         boxShadow: [
           BoxShadow(
             color: Colors.black26,
@@ -107,7 +157,6 @@ class _AddPostState extends State<AddPost> {
       ),
       child: Column(
         children: [
-          // Header with title
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -121,62 +170,72 @@ class _AddPostState extends State<AddPost> {
                     color: Color(0xFF450000),
                   ),
                 ),
-                // Optional: Add a refresh button
                 IconButton(
                   icon: const Icon(Icons.refresh, color: Color(0xFF450000)),
-                  onPressed: () => getPostList(userId),
+                  onPressed: fetchPosts,
                 ),
               ],
             ),
           ),
-
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: items == null
+              child: isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      itemCount: items!.length,
-                      itemBuilder: (context, int index) {
-                        return Slidable(
-                          key: ValueKey(items![index]['_id']),
-                          endActionPane: ActionPane(
-                            motion: const ScrollMotion(),
-                            dismissible: DismissiblePane(onDismissed: () {}),
-                            children: [
-                              SlidableAction(
-                                backgroundColor: Color(0xFFFE4A49),
-                                foregroundColor: Colors.white,
-                                icon: Icons.delete,
-                                label: 'Delete',
-                                onPressed: (BuildContext context) {
-                                  deleteItem('${items![index]['_id']}');
-                                },
+                  : items.isEmpty
+                      ? const Center(child: Text('No posts yet'))
+                      : ListView.builder(
+                          itemCount: items.length,
+                          itemBuilder: (context, int index) {
+                            return Slidable(
+                              key: ValueKey(items[index]['_id']),
+                              endActionPane: ActionPane(
+                                motion: const ScrollMotion(),
+                                dismissible:
+                                    DismissiblePane(onDismissed: () {}),
+                                children: [
+                                  SlidableAction(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    icon: Icons.delete,
+                                    label: 'Delete',
+                                    onPressed: (BuildContext context) {
+                                      deletePost(items[index]['_id']);
+                                    },
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Card(
-                            elevation: 2,
-                            margin: const EdgeInsets.symmetric(
-                                vertical: 8, horizontal: 4),
-                            child: ListTile(
-                              title: Text(
-                                '${items![index]['title']}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
+                              child: Card(
+                                elevation: 2,
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 8, horizontal: 4),
+                                child: ListTile(
+                                  title: Text(
+                                    items[index]['title'],
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Text(items[index]['desc']),
+                                  trailing: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                          'Likes: ${items[index]['likes'] ?? 0}'),
+                                      const Icon(Icons.arrow_back,
+                                          color: Color(0xFF450000)),
+                                    ],
+                                  ),
+                                  onTap: () {
+                                    // Optional: Navigate to post details
+                                    // Navigator.push(...);
+                                  },
+                                ),
                               ),
-                              subtitle: Text('${items![index]['desc']}'),
-                              trailing: const Icon(Icons.arrow_back,
-                                  color: Color(0xFF450000)),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                            );
+                          },
+                        ),
             ),
           ),
-
-          // Positioned the FloatingActionButton to the left
           Align(
             alignment: Alignment.centerRight,
             child: Padding(
@@ -184,11 +243,8 @@ class _AddPostState extends State<AddPost> {
               child: FloatingActionButton(
                 onPressed: () => _displayTextInputDialog(context),
                 backgroundColor: const Color(0xFF450000),
-                child: Icon(
-                  Icons.add,
-                  color: Colors.white,
-                ),
                 tooltip: 'Add Post',
+                child: const Icon(Icons.add, color: Colors.white),
               ),
             ),
           ),
@@ -202,7 +258,7 @@ class _AddPostState extends State<AddPost> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Add a post'),
+          title: const Text('Add a post'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -217,7 +273,7 @@ class _AddPostState extends State<AddPost> {
                       borderRadius: BorderRadius.all(Radius.circular(10.0))),
                 ),
               ),
-              SizedBox(height: 10.0),
+              const SizedBox(height: 10.0),
               TextField(
                 controller: _postContent,
                 keyboardType: TextInputType.text,
@@ -237,19 +293,17 @@ class _AddPostState extends State<AddPost> {
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: () {
-                PostToCommunity();
-              },
+              onPressed: createPost,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF450000),
               ),
               child: const Text(
                 "Add",
                 style: TextStyle(
-                  color: Colors.white, // Set the text color to white
+                  color: Colors.white,
                 ),
               ),
-            )
+            ),
           ],
         );
       },

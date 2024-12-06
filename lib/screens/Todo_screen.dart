@@ -91,7 +91,7 @@ class _AddPostState extends State<AddPost> {
 
     // Making a POST request to the backend
     var response = await http.post(
-      Uri.parse(deletePost),
+      Uri.parse(deletePosts),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode(signupBody),
     );

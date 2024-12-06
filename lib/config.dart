@@ -3,4 +3,4 @@ final registration = url + "registration";
 final login = url + "login";
 final addPost = url + "storePost";
 final postList = url + "getUserPost";
-final deletePost = url + "deletePost";
+final deletePosts = url + "deletePost";
