@@ -3,6 +3,7 @@ import 'screens/home_screen.dart';
 import 'screens/community_screen.dart';
 import 'screens/info_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/Todo_screen.dart';
 
 class Dashboard extends StatefulWidget {
   final String token;
@@ -24,7 +25,8 @@ class _DashboardState extends State<Dashboard> {
       HomeScreen(
           token: widget.token), // Assuming HomeScreen doesn't need the token
       AddPost(
-        token: widget.token, // Provide an empty callback or a meaningful action
+        token: widget.token,
+        onClose: () {}, // Empty callback
       ),
       InfoScreen(), // Assuming InfoScreen doesn't need the token
       ProfileScreen(token: widget.token),

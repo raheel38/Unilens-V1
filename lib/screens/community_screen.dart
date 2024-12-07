@@ -5,19 +5,20 @@ import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:today/config.dart';
 
-class AddPost extends StatefulWidget {
+class AddComPost extends StatefulWidget {
   final String token;
 
-  const AddPost({required this.token, Key? key}) : super(key: key);
+  const AddComPost({required this.token, Key? key}) : super(key: key);
 
   @override
-  State<AddPost> createState() => _AddPostState();
+  State<AddComPost> createState() => _AddComPostState();
 }
 
-class _AddPostState extends State<AddPost> {
+class _AddComPostState extends State<AddComPost> {
   late String userId;
   final TextEditingController _postTitle = TextEditingController();
   final TextEditingController _postContent = TextEditingController();
+
   List<dynamic> items = [];
   bool isLoading = false;
 
@@ -26,120 +27,76 @@ class _AddPostState extends State<AddPost> {
     super.initState();
     Map<String, dynamic> jwtDecodedToken = JwtDecoder.decode(widget.token);
     userId = jwtDecodedToken['_id'];
-    fetchPosts();
+    getPostList(userId);
   }
 
-  void createPost() async {
-    if (_postTitle.text.isEmpty || _postContent.text.isEmpty) {
-      _showSnackBar('Please fill in all fields');
-      return;
-    }
+//createPost to PostToCommunity
+  void PostToCommunity() async {
+    if (_postTitle.text.isNotEmpty && _postContent.text.isNotEmpty) {
+      // Creating the request body to send to the backend
+      var signupBody = {
+        "userId": userId,
+        "title": _postTitle.text,
+        "desc": _postContent.text
+      };
 
-    try {
+      // Making a POST request to the backend
       var response = await http.post(
         Uri.parse(addPost),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "userId": userId,
-          "title": _postTitle.text,
-          "desc": _postContent.text
-        }),
+        body: jsonEncode(signupBody),
       );
 
       var jsonResponse = jsonDecode(response.body);
+      print(jsonResponse['status']);
 
       if (jsonResponse['status']) {
+        // Clear the input fields and close the dialog
         _postTitle.clear();
         _postContent.clear();
-        fetchPosts();
+        getPostList(userId);
         Navigator.pop(context);
-        _showSnackBar('Post created successfully');
       } else {
-        _showSnackBar(jsonResponse['message'] ?? 'Failed to create post');
+        print("Something Went Wrong!");
       }
-    } catch (e) {
-      _showSnackBar('Error: $e');
+    } else {
+      print("Fields cannot be empty");
     }
   }
 
-  void fetchPosts() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      var response = await http.post(
-        Uri.parse(postList),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"userId": userId}),
-      );
-
-      var jsonResponse = jsonDecode(response.body);
-
-      if (jsonResponse['status']) {
-        setState(() {
-          items = jsonResponse['posts'] ?? [];
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          isLoading = false;
-        });
-        _showSnackBar(jsonResponse['message'] ?? 'Failed to fetch posts');
-      }
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-      _showSnackBar('Error: $e');
-    }
-  }
-
-  void deletePost(String postId) async {
-    try {
-      // Additional debug logging
-      debugPrint('Attempting to delete post with ID: $postId');
-      debugPrint('Using endpoint: $deletePost');
-      debugPrint('User ID: $userId');
-
-      var response = await http.post(
-        Uri.parse(deletePosts),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "id": postId,
-          "userId": userId // Include userId for additional verification
-        }),
-      );
-
-      // More detailed logging
-      debugPrint('Delete response status code: ${response.statusCode}');
-      debugPrint('Delete response body: ${response.body}');
-
-      var jsonResponse = jsonDecode(response.body);
-
-      if (jsonResponse['status']) {
-        // Successful deletion
-        fetchPosts(); // Refresh the list
-        _showSnackBar('Post deleted successfully');
-      } else {
-        // Server returned false status
-        _showSnackBar(jsonResponse['message'] ?? 'Failed to delete post');
-      }
-    } catch (e) {
-      // Catch and log any network or parsing errors
-      debugPrint('Error deleting post: $e');
-      _showSnackBar('Error deleting post: $e');
-    }
-  }
-
-  // Centralized method for showing SnackBar
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 3),
-      ),
+  void getPostList(userId) async {
+    var signupBody = {
+      "userId": userId,
+    };
+    // Making a POST request to the backend
+    var response = await http.post(
+      Uri.parse(postList),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(signupBody),
     );
+
+    var jsonResponse = jsonDecode(response.body);
+    items = jsonResponse['success'];
+
+    setState(() {});
+  }
+
+  void deletePost(id) async {
+    var signupBody = {
+      "id": id,
+    };
+
+    // Making a POST request to the backend
+    var response = await http.post(
+      Uri.parse(deletePosts),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(signupBody),
+    );
+
+    var jsonResponse = jsonDecode(response.body);
+    if (jsonResponse['status']) {
+      getPostList(userId);
+    }
   }
 
   @override
@@ -172,7 +129,7 @@ class _AddPostState extends State<AddPost> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh, color: Color(0xFF450000)),
-                  onPressed: fetchPosts,
+                  onPressed: () => getPostList(userId),
                 ),
               ],
             ),
@@ -293,7 +250,7 @@ class _AddPostState extends State<AddPost> {
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: createPost,
+              onPressed: PostToCommunity,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF450000),
               ),
