@@ -64,25 +64,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const Spacer(),
                   Center(
-                    child: ElevatedButton(
-                      onPressed: _toggleTodoVisibility,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF450000),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(
-                            color: Colors.white, // White border
-                            width: 0.5, // Very thin border
+                    child: Stack(
+                      alignment: Alignment.bottomCenter,
+                      children: [
+                        ElevatedButton(
+                          onPressed: _toggleTodoVisibility,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF450000),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            elevation: 8, // Add elevation for the shadow effect
+                            shadowColor:
+                                const Color(0xFF2C2C54), // Dark Blue shadow
+                          ),
+                          child: Text(
+                            isTodoVisible ? 'Hide ToDo' : 'Show ToDo',
+                            style: const TextStyle(color: Colors.white),
                           ),
                         ),
-                        elevation: 8, // Add elevation for the shadow effect
-                        shadowColor:
-                            const Color(0xFF2C2C54), // Dark Blue shadow
-                      ),
-                      child: Text(
-                        isTodoVisible ? 'Hide ToDo' : 'Show ToDo',
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                        Positioned(
+                          bottom: 0,
+                          child: Container(
+                            width: 150, // Adjust width to match the button
+                            height: 1, // Thin line
+                            color: Colors.white, // Line color
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),

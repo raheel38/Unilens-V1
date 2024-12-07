@@ -24,10 +24,7 @@ class _DashboardState extends State<Dashboard> {
     _screens = [
       HomeScreen(
           token: widget.token), // Assuming HomeScreen doesn't need the token
-      AddPost(
-        token: widget.token,
-        onClose: () {}, // Empty callback
-      ),
+      AddComPost(token: widget.token),
       InfoScreen(), // Assuming InfoScreen doesn't need the token
       ProfileScreen(token: widget.token),
     ];

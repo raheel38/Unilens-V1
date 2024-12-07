@@ -7,12 +7,9 @@ import 'package:today/config.dart';
 
 class AddPost extends StatefulWidget {
   final String token;
-  final VoidCallback onClose; // Add onClose callback
+  final VoidCallback onClose;
 
-  const AddPost(
-      {required this.token,
-      required this.onClose, // Make onClose required
-      Key? key})
+  const AddPost({required this.token, required this.onClose, Key? key})
       : super(key: key);
 
   @override
@@ -21,9 +18,8 @@ class AddPost extends StatefulWidget {
 
 class _AddPostState extends State<AddPost> {
   late String userId;
-  TextEditingController _postTitle = TextEditingController();
-  TextEditingController _postContent = TextEditingController();
-  //list of items
+  final TextEditingController _postTitle = TextEditingController();
+  final TextEditingController _postContent = TextEditingController();
   List? items;
 
   @override
@@ -34,71 +30,100 @@ class _AddPostState extends State<AddPost> {
     getPostList(userId);
   }
 
-  void PostToCommunity() async {
+  void postToCommunity() async {
     if (_postTitle.text.isNotEmpty && _postContent.text.isNotEmpty) {
-      // Creating the request body to send to the backend
-      var signupBody = {
+      var requestBody = {
         "userId": userId,
         "title": _postTitle.text,
         "desc": _postContent.text
       };
 
-      // Making a POST request to the backend
-      var response = await http.post(
-        Uri.parse(addPost),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(signupBody),
-      );
+      try {
+        var response = await http.post(
+          Uri.parse(addPost),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(requestBody),
+        );
 
-      var jsonResponse = jsonDecode(response.body);
-      print(jsonResponse['status']);
+        var jsonResponse = jsonDecode(response.body);
 
-      if (jsonResponse['status']) {
-        // Clear the input fields and close the dialog
-        _postTitle.clear();
-        _postContent.clear();
-        getPostList(userId);
-        Navigator.pop(context);
-      } else {
-        print("Something Went Wrong!");
+        if (jsonResponse['status']) {
+          _postTitle.clear();
+          _postContent.clear();
+          getPostList(userId);
+          Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to add post')),
+          );
+        }
+      } catch (e) {
+        print('Error adding post: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('An error occurred while adding the post')),
+        );
       }
     } else {
-      print("Fields cannot be empty");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Title and description cannot be empty')),
+      );
     }
   }
 
-  void getPostList(userId) async {
-    var signupBody = {
-      "userId": userId,
-    };
-    // Making a POST request to the backend
-    var response = await http.post(
-      Uri.parse(postList),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(signupBody),
-    );
+  void getPostList(String userId) async {
+    try {
+      var requestBody = {
+        "userId": userId,
+      };
 
-    var jsonResponse = jsonDecode(response.body);
-    items = jsonResponse['success'];
+      var response = await http.post(
+        Uri.parse(postList),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(requestBody),
+      );
 
-    setState(() {});
+      var jsonResponse = jsonDecode(response.body);
+      setState(() {
+        items = jsonResponse['success'];
+      });
+    } catch (e) {
+      print('Error fetching post list: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load posts')),
+      );
+    }
   }
 
-  void deleteItem(id) async {
-    var signupBody = {
-      "id": id,
-    };
+  void deleteItem(String id) async {
+    try {
+      var requestBody = {
+        "id": id,
+      };
 
-    // Making a POST request to the backend
-    var response = await http.post(
-      Uri.parse(deletePosts),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(signupBody),
-    );
+      var response = await http.post(
+        Uri.parse(deletePost),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(requestBody),
+      );
 
-    var jsonResponse = jsonDecode(response.body);
-    if (jsonResponse['status']) {
-      getPostList(userId);
+      print('Delete Response Status Code: ${response.statusCode}');
+      print('Delete Response Body: ${response.body}');
+
+      var jsonResponse = jsonDecode(response.body);
+
+      if (jsonResponse != null && jsonResponse['status'] == true) {
+        getPostList(userId);
+      } else {
+        print('Delete failed: ${jsonResponse}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete post')),
+        );
+      }
+    } catch (e) {
+      print('Error deleting item: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An error occurred while deleting the post')),
+      );
     }
   }
 
@@ -121,28 +146,26 @@ class _AddPostState extends State<AddPost> {
       ),
       child: Column(
         children: [
-          // Close button at the top
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'My Posts',
+                const Text(
+                  'My Todos',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF450000),
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.close, color: Colors.black),
+                  icon: const Icon(Icons.close, color: Colors.black),
                   onPressed: widget.onClose,
                 ),
               ],
             ),
           ),
-
-          // List of posts
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(8.0),
@@ -180,8 +203,6 @@ class _AddPostState extends State<AddPost> {
                     ),
             ),
           ),
-
-          // Floating Action Button
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: FloatingActionButton(
@@ -191,7 +212,7 @@ class _AddPostState extends State<AddPost> {
                 Icons.add,
                 color: Colors.white,
               ),
-              tooltip: 'Add-ToDo',
+              tooltip: 'Add a task',
             ),
           ),
         ],
@@ -204,7 +225,7 @@ class _AddPostState extends State<AddPost> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Add a post'),
+          title: const Text('Add a task'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -216,7 +237,8 @@ class _AddPostState extends State<AddPost> {
                   fillColor: Colors.white,
                   hintText: "Title",
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10.0))),
+                    borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                  ),
                 ),
               ),
               SizedBox(height: 10.0),
@@ -228,16 +250,15 @@ class _AddPostState extends State<AddPost> {
                   fillColor: Colors.white,
                   hintText: "Description",
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10.0))),
+                    borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                  ),
                 ),
               ),
             ],
           ),
           actions: [
             ElevatedButton(
-              onPressed: () {
-                PostToCommunity();
-              },
+              onPressed: postToCommunity,
               child: Text("Add"),
             ),
           ],

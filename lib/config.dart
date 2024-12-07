@@ -6,10 +6,10 @@ final login = url + "login";
 //Todo page
 final addPost = url + "storePost";
 final postList = url + "getUserPost";
-final deletePosts = url + "deletePost";
+final deletePost = url + "deletePost";
 // Community page
 final addComPost = url + "StoreComPosts";
 final comPostList = url + "getUserComPosts";
-final getAllComPosts = url + "getAllPosts";
+//final getAllComPosts = url + "getAllPosts";
 final deleteComPosts = url + "deleteComPost";
-final likePost = url + "likePost";
+//final likeComPost = url + "likePost";
